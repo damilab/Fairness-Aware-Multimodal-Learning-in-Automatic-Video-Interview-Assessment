@@ -12,4 +12,4 @@ data/celeba/list_eval_partition.txt
 data/celeba/list_landmarks_align_celeba.txt
 
 # log directory
-task/runs
+task/*/runs
