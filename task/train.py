@@ -116,11 +116,12 @@ def main(config: dict):
             pred, _ = model(image)
 
             bce_loss = bce_loss_fn(pred, target)
-            wd_loss = wd_loss_fn(pred, group)
-            loss = bce_loss + (wd_loss_weight * wd_loss)
+            # wd_loss = wd_loss_fn(pred, group)
+            # loss = bce_loss + (wd_loss_weight * wd_loss)
+            loss = bce_loss
 
             writer.add_scalar("train/bce_loss", bce_loss, train_steps)
-            writer.add_scalar("train/wd_loss", wd_loss, train_steps)
+            # writer.add_scalar("train/wd_loss", wd_loss, train_steps)
             train_steps += 1
 
             optimizer.zero_grad()
@@ -206,11 +207,11 @@ def main(config: dict):
                 pred, _ = model(image)
 
                 bce_loss = bce_loss_fn(pred, target)
-                wd_loss = wd_loss_fn(pred, group)
-                loss = bce_loss + (wd_loss_weight * wd_loss)
+                # wd_loss = wd_loss_fn(pred, group)
+                # loss = bce_loss + (wd_loss_weight * wd_loss)
 
                 writer.add_scalar("valid/bce_loss", bce_loss, valid_steps)
-                writer.add_scalar("valid/wd_loss", wd_loss, valid_steps)
+                # writer.add_scalar("valid/wd_loss", wd_loss, valid_steps)
                 valid_steps += 1
 
                 valid_epoch_pred.append(pred.squeeze(-1).detach().cpu())
@@ -389,16 +390,16 @@ def main(config: dict):
 
 if __name__ == "__main__":
 
-    config = {
-        "epochs": 200,
-        "device": 0,
-        "logger_root": "vanilla/version_0",
-        "gaussian_noise_transform_in_train_dataset": False,
-        "learning_rate": 1.0e-04,
-        "wd_loss_mode": "mean",
-        "wd_loss_lambda": 0,
-    }
-    main(config)
+    # config = {
+    #     "epochs": 200,
+    #     "device": 0,
+    #     "logger_root": "vanilla/version_0",
+    #     "gaussian_noise_transform_in_train_dataset": False,
+    #     "learning_rate": 1.0e-04,
+    #     "wd_loss_mode": "mean",
+    #     "wd_loss_lambda": 0,
+    # }
+    # main(config)
 
     config = {
         "epochs": 200,
