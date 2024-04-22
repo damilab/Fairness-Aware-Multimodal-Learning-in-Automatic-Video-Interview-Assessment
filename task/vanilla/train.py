@@ -1,6 +1,7 @@
 import os
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 import yaml
 
 from dataset.transform import (
@@ -149,13 +150,11 @@ def main(config: dict):
             target = target.type(torch.float32).to(device)
             group = group.type(torch.float32).to(device)
 
-            # pred, feature = model(image)
+            pred, feature = model(image)
 
             loss_dict = loss_function(
-                model,
-                images=image,
-                # feature=feature,
-                # pred=pred,
+                feature=feature,
+                pred=pred,
                 target=target,
                 group=group,
             )
