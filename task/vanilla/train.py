@@ -1,3 +1,6 @@
+import os
+
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 import yaml
 
 from dataset.transform import (
@@ -19,7 +22,6 @@ from torchmetrics.classification import BinaryAccuracy, BinaryAveragePrecision
 from metric import DP, SPDD, GS
 from metric import Equal_Opportunity, Equalized_Odds
 
-import os
 from tqdm import tqdm
 import json
 
@@ -147,11 +149,13 @@ def main(config: dict):
             target = target.type(torch.float32).to(device)
             group = group.type(torch.float32).to(device)
 
-            pred, feature = model(image)
+            # pred, feature = model(image)
 
             loss_dict = loss_function(
-                feature=feature,
-                pred=pred,
+                model,
+                images=image,
+                # feature=feature,
+                # pred=pred,
                 target=target,
                 group=group,
             )
@@ -285,7 +289,8 @@ def main(config: dict):
             gs_mean, gs_max = gs_fn(
                 valid_epoch_pred, valid_epoch_target, valid_epoch_group
             )
-            if prev_acc < binaryaccuracy:
+            if prev_acc < binaryaccuracy.item():
+                prev_acc = binaryaccuracy.item()
                 filepath = os.path.join(model_path, "best_model.pt")
                 print("filepath :", filepath)
                 save_dict = {
@@ -353,7 +358,9 @@ def main(config: dict):
         persistent_workers=True,
     )
     filepath = os.path.join("./", model_path, "best_model.pt")
-    model = torch.load(filepath, map_location="cpu")["model"]
+    save_dict = torch.load(filepath, map_location="cpu")["model"]
+    epoch = save_dict["epoch"]
+    model = save_dict["model"]
     model.to(device)
     ##################################################################################
     test_epoch_pred = []
@@ -443,9 +450,9 @@ if __name__ == "__main__":
     config_path = "./config/vanilla.yaml"
     config = yaml.load(open(config_path, "r"), Loader=yaml.FullLoader)
     main(config)
-    # config["trainer"]["learning_rate"] = 1.0e-04
-    # main(config)
-    # config["trainer"]["learning_rate"] = 1.0e-05
-    # main(config)
-    # config["trainer"]["learning_rate"] = 1.0e-06
-    # main(config)
+    config["trainer"]["learning_rate"] = 1.0e-04
+    main(config)
+    config["trainer"]["learning_rate"] = 1.0e-05
+    main(config)
+    config["trainer"]["learning_rate"] = 1.0e-06
+    main(config)

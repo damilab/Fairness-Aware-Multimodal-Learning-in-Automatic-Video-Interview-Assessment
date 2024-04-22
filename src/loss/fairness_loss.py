@@ -31,6 +31,7 @@ class FairnessLoss(nn.Module):
         target: torch.Tensor,
         group: torch.Tensor,
     ) -> dict:
+
         base_loss = self._base_loss_function(pred, target)
         wd_loss = self._wd_loss_function(pred, group)
         gapreg_loss = self._gapreg_loss_function(pred, group)
