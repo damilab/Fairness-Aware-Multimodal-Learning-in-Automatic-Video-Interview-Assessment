@@ -5,8 +5,6 @@ from functools import reduce
 
 
 class PredictionOversamplingWDLoss(nn.Module):
-    """batch 내에서 major group과 minor group 간 Wasserstein distance를 직접 loss로 추가"""
-
     def __init__(self, num_group: int, mode: str, lcm: bool):
         super().__init__()
         self._num_group = num_group
@@ -45,7 +43,6 @@ class PredictionOversamplingWDLoss(nn.Module):
             for j in range(i + 1, len(expanded_group_pred_list)):
                 group1 = expanded_group_pred_list[i]
                 group2 = expanded_group_pred_list[j]
-                # min_len = min(len(group1), len(group2))
                 group1 = torch.sort(group1, dim=0)[0]
                 group2 = torch.sort(group2, dim=0)[0]
                 distance = torch.mean(torch.abs(group1 - group2))

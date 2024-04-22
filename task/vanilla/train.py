@@ -14,6 +14,8 @@ from network import ResNet
 
 import torch
 from loss import FairnessLoss
+from loss import L2Loss
+from loss import WDLoss
 from loss import PredictionOversamplingWDLoss
 from loss import GapReg
 
@@ -81,10 +83,16 @@ def main(config: dict):
     base_loss_function = torch.nn.BCELoss()
 
     wd_loss_weight = config["loss"]["wd_loss"]["weight"]
-    wd_loss_function = PredictionOversamplingWDLoss(
+    wd_loss_function = WDLoss(
         num_group=num_group,
         mode=config["loss"]["wd_loss"]["mode"],
-        lcm=config["loss"]["wd_loss"]["lcm"],
+    )
+
+    powd_loss_weight = config["loss"]["powd_loss"]["weight"]
+    powd_loss_function = PredictionOversamplingWDLoss(
+        num_group=num_group,
+        mode=config["loss"]["powd_loss"]["mode"],
+        lcm=config["loss"]["powd_loss"]["lcm"],
     )
 
     gapreg_loss_weight = config["loss"]["gapreg_loss"]["weight"]
@@ -93,13 +101,23 @@ def main(config: dict):
         mode=config["loss"]["gapreg_loss"]["mode"],
     )
 
+    l2_loss_weight = config["loss"]["l2_loss"]["weight"]
+    l2_loss_function = L2Loss(
+        num_group=num_group,
+        mode=config["loss"]["l2_loss"]["mode"],
+    )
+
     loss_function = FairnessLoss(
         base_loss_weight=base_loss_weight,
         base_loss_function=base_loss_function,
         wd_loss_weight=wd_loss_weight,
         wd_loss_function=wd_loss_function,
+        powd_loss_weight=powd_loss_weight,
+        powd_loss_function=powd_loss_function,
         gapreg_loss_weight=gapreg_loss_weight,
         gapreg_loss_function=gapreg_loss_function,
+        l2_loss_weight=l2_loss_weight,
+        l2_loss_function=l2_loss_function,
     )
     ####################################################
     epochs = config["trainer"]["epochs"]
@@ -448,10 +466,10 @@ def main(config: dict):
 if __name__ == "__main__":
     config_path = "./config/vanilla.yaml"
     config = yaml.load(open(config_path, "r"), Loader=yaml.FullLoader)
-    main(config)
-    config["trainer"]["learning_rate"] = 1.0e-04
-    main(config)
-    config["trainer"]["learning_rate"] = 1.0e-05
-    main(config)
+    # main(config)
+    # config["trainer"]["learning_rate"] = 1.0e-04
+    # main(config)
+    # config["trainer"]["learning_rate"] = 1.0e-05
+    # main(config)
     config["trainer"]["learning_rate"] = 1.0e-06
     main(config)

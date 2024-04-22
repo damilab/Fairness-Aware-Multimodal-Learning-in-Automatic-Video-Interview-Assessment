@@ -15,7 +15,13 @@ module:
 loss:
   base_loss:
     weight: 1.0
+  l2_loss:
+    weight: 0.0
+    mode: mean
   wd_loss:
+    weight: 0.0
+    mode: mean
+  powd_loss:
     weight: 0.0
     mode: mean
     lcm: False
