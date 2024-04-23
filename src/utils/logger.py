@@ -8,13 +8,17 @@ def set_loggers_folder(
     logger_root: str,
     logger_name: str,
 ):
-    logger_path = os.path.join(logger_root, logger_name)
-    if len(os.listdir(logger_path)) == 0:
+    try:
+        logger_path = os.path.join(logger_root, logger_name)
+        if len(os.listdir(logger_path)) == 0:
+            logger_path = logger_path + "/version_0"
+            os.makedirs(logger_path)
+        else:
+            number = str(int(sorted(os.listdir(logger_path))[-1][-1]) + 1)
+            logger_path = logger_path + "/version_" + number
+            os.makedirs(logger_path)
+    except:
         logger_path = logger_path + "/version_0"
-        os.makedirs(logger_path)
-    else:
-        number = str(int(sorted(os.listdir(logger_path))[-1][-1]) + 1)
-        logger_path = logger_path + "/version_" + number
         os.makedirs(logger_path)
 
     print(logger_path)

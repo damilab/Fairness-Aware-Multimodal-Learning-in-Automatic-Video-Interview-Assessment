@@ -375,7 +375,7 @@ def main(config: dict):
         persistent_workers=True,
     )
     filepath = os.path.join("./", model_path, "best_model.pt")
-    save_dict = torch.load(filepath, map_location="cpu")["model"]
+    save_dict = torch.load(filepath, map_location="cpu")
     epoch = save_dict["epoch"]
     model = save_dict["model"]
     model.to(device)
@@ -464,12 +464,15 @@ def main(config: dict):
 
 
 if __name__ == "__main__":
-    config_path = "./config/vanilla.yaml"
+    config_path = "./config/l2.yaml"
     config = yaml.load(open(config_path, "r"), Loader=yaml.FullLoader)
-    # main(config)
-    # config["trainer"]["learning_rate"] = 1.0e-04
-    # main(config)
-    # config["trainer"]["learning_rate"] = 1.0e-05
-    # main(config)
-    config["trainer"]["learning_rate"] = 1.0e-06
     main(config)
+
+    config["loss"]["l2_loss"]["mode"] = "max"
+    main(config)
+    # # config["trainer"]["learning_rate"] = 1.0e-04
+    # # main(config)
+    # # config["trainer"]["learning_rate"] = 1.0e-05
+    # # main(config)
+    # # config["trainer"]["learning_rate"] = 1.0e-06
+    # # main(config)

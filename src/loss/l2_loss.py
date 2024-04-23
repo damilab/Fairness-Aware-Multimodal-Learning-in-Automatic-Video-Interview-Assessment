@@ -7,17 +7,19 @@ class L2Loss(nn.Module):
 
     """ Z - hidden space """
 
-    def __init__(self, num_group: int):
+    def __init__(self, num_group: int, mode: str):
         super().__init__()
         self._num_group = num_group
+        self._mode = mode
         self._loss_fn = nn.MSELoss()
 
     def _cal_l2_distance(self, batch_hidden, batch_group):
         # group별로 split
         group_hidden_list = []
         for i in range(self._num_group):
-            group_hidden = batch_hidden[torch.where(batch_group == i)]
-            group_hidden_list.append(group_hidden)
+            group_hidden = batch_hidden[torch.where(batch_group == i)[0]]
+            if group_hidden.shape[0] != 0:
+                group_hidden_list.append(group_hidden)
 
         l2_distances = []
         for i in range(len(group_hidden_list) - 1):

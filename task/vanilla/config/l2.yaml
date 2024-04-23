@@ -16,7 +16,7 @@ loss:
   base_loss:
     weight: 1.0
   l2_loss:
-    weight: 0.0
+    weight: 1.0
     mode: mean
   wd_loss:
     weight: 0.0
@@ -30,12 +30,12 @@ loss:
     mode: mean
   
 trainer:
-  learning_rate: 1.0e-06
+  learning_rate: 1.0e-03
   epochs: 50
   device: 0
   logger: 
     root: ./runs
-    name: vanilla
+    name: l2
 
 metric: 
   num_class: 2
