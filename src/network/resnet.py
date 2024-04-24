@@ -64,3 +64,16 @@ class ResNet(nn.Module):
         out = self._classifier(emb)
         out = self._sigmoid(out)
         return out, emb
+
+
+class Classifier(nn.Module):
+    def __init__(self, num_class = 1) -> None:
+        super().__init__()
+
+        self._classifier = nn.Linear(512, num_class)
+        self._sigmoid = nn.Sigmoid()
+
+    def forward(self, emb):
+        out = self._classifier(emb)
+        out = self._sigmoid(out)
+        return out
