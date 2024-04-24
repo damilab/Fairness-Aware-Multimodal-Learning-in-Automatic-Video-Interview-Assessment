@@ -1,10 +1,10 @@
 datamodule:
-  image_dir: C:/Users/kcw83/Desktop/fairness/data
+  image_dir: C:/Users/user/fairness/fairness-main
   sensitive_attributes: 
   - Male
   - Young
   num_workers: 4
-  batch_size: 128
+  batch_size: 256
 
 module:
   model:
@@ -15,19 +15,17 @@ module:
 loss:
   base_loss:
     weight: 1.0
-  l2_loss:
-    weight: 0.0
-    mode: mean
   wd_loss:
-    weight: 0.0
-    mode: mean
-  powd_loss:
     weight: 0.0
     mode: mean
     lcm: False
   gapreg_loss:
-    weight: 0.0
+    weight: 1.0
     mode: mean
+  mixup_loss:
+    weight: 00.0
+  mixup_mf_loss:
+    weight: 0.0 
   
 trainer:
   learning_rate: 1.0e-06
