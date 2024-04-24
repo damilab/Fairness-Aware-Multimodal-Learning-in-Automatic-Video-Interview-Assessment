@@ -1,7 +1,10 @@
 import os
+import sys
+
+sys.path.append("C:/Users/user/fairness/fairness-main/src")
+
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-
 import yaml
 
 from dataset.transform import (
@@ -11,13 +14,16 @@ from dataset.transform import (
 from dataset import CelebADataset_MSA
 from torch.utils.data import DataLoader
 from network import ResNet
+from network import ResNetEncoder
+from network import Classifier
+
 
 import torch
 from loss import FairnessLoss
-from loss import L2Loss
-from loss import WDLoss
 from loss import PredictionOversamplingWDLoss
 from loss import GapReg
+from loss import Mixup
+from loss import Mixup_manifold
 
 from utils import set_loggers_folder
 
@@ -75,6 +81,14 @@ def main(config: dict):
         type=config["module"]["model"]["type"],
         pretrained_path=config["module"]["model"]["pretrained_path"],
     )
+
+    # model=ResNetEncoder(
+    #     type=config["module"]["model"]["type"],
+    #     pretrained_path=config["module"]["model"]["pretrained_path"]
+    # )
+    # model_linear = Classifier(
+    #     num_class=config["module"]["model"]["num_class"]
+    # )
     ####################################################
     # loss function
     num_group = 2 ** len(config["datamodule"]["sensitive_attributes"])
@@ -83,16 +97,10 @@ def main(config: dict):
     base_loss_function = torch.nn.BCELoss()
 
     wd_loss_weight = config["loss"]["wd_loss"]["weight"]
-    wd_loss_function = WDLoss(
+    wd_loss_function = PredictionOversamplingWDLoss(
         num_group=num_group,
         mode=config["loss"]["wd_loss"]["mode"],
-    )
-
-    powd_loss_weight = config["loss"]["powd_loss"]["weight"]
-    powd_loss_function = PredictionOversamplingWDLoss(
-        num_group=num_group,
-        mode=config["loss"]["powd_loss"]["mode"],
-        lcm=config["loss"]["powd_loss"]["lcm"],
+        lcm=config["loss"]["wd_loss"]["lcm"],
     )
 
     gapreg_loss_weight = config["loss"]["gapreg_loss"]["weight"]
@@ -101,10 +109,14 @@ def main(config: dict):
         mode=config["loss"]["gapreg_loss"]["mode"],
     )
 
-    l2_loss_weight = config["loss"]["l2_loss"]["weight"]
-    l2_loss_function = L2Loss(
+    mixup_loss_weight = config["loss"]["mixup_loss"]["weight"]
+    mixup_loss_function = Mixup(
         num_group=num_group,
-        mode=config["loss"]["l2_loss"]["mode"],
+    )
+
+    mixup_mf_loss_weight = config["loss"]["mixup_mf_loss"]["weight"]
+    mixup_mf_loss_function = Mixup_manifold(
+        num_group=num_group,
     )
 
     loss_function = FairnessLoss(
@@ -112,12 +124,12 @@ def main(config: dict):
         base_loss_function=base_loss_function,
         wd_loss_weight=wd_loss_weight,
         wd_loss_function=wd_loss_function,
-        powd_loss_weight=powd_loss_weight,
-        powd_loss_function=powd_loss_function,
         gapreg_loss_weight=gapreg_loss_weight,
         gapreg_loss_function=gapreg_loss_function,
-        l2_loss_weight=l2_loss_weight,
-        l2_loss_function=l2_loss_function,
+        mixup_loss_weight=mixup_loss_weight,
+        mixup_loss_function=mixup_loss_function,
+        mixup_mf_loss_weight=mixup_mf_loss_weight,
+        mixup_mf_loss_function=mixup_mf_loss_function
     )
     ####################################################
     epochs = config["trainer"]["epochs"]
@@ -126,7 +138,16 @@ def main(config: dict):
         model.parameters(),
         lr=config["trainer"]["learning_rate"],
     )
-    ####################################################
+    # optimizer = torch.optim.Adam(
+    #     model.parameters(),
+    #     lr=config["trainer"]["learning_rate"],
+    # )
+
+    # optimizer_linear = torch.optim.Adam(
+    #     model_linear.parameters(),
+    #     lr=config["trainer"]["learning_rate"],
+    # )
+    # ####################################################
     # metrics
     num_class = config["metric"]["num_class"]
     tau = config["metric"]["tau"]
@@ -154,6 +175,8 @@ def main(config: dict):
     writer = set_loggers["writer"]
     ####################################################
     model.to(device)
+    # model_linear.to(device)
+
     train_steps = 0
     valid_steps = 0
     prev_acc = 0
@@ -169,8 +192,14 @@ def main(config: dict):
             group = group.type(torch.float32).to(device)
 
             pred, feature = model(image)
+            # feature = model(image)
+
+            # pred = model_linear(feature)
 
             loss_dict = loss_function(
+                model,
+                # model_linear,
+                image=image,
                 feature=feature,
                 pred=pred,
                 target=target,
@@ -182,8 +211,11 @@ def main(config: dict):
             train_steps += 1
 
             optimizer.zero_grad()
+            # optimizer_linear.zero_grad()
             loss_dict["total_loss"].backward()
             optimizer.step()
+            # optimizer_linear.step()
+
 
             train_epoch_pred.append(pred.squeeze(-1).detach().cpu())
             train_epoch_target.append(target.squeeze(-1).detach().cpu())
@@ -265,17 +297,22 @@ def main(config: dict):
                 group = group.type(torch.float32).to(device)
 
                 pred, feature = model(image)
+                # feature = model(image)
+                # pred = model_linear(feature)
 
-                loss_dict = loss_function(
-                    feature=feature,
-                    pred=pred,
-                    target=target,
-                    group=group,
-                )
+            #     loss_dict = loss_function(
+            #         model,
+            #         # model_linear,
+            #         image=image,
+            #         feature=feature,
+            #         pred=pred,
+            #         target=target,
+            #         group=group,
+            # )
 
-                for loss_name, loss_value in loss_dict.items():
-                    writer.add_scalar("valid/" + loss_name, loss_value, train_steps)
-                valid_steps += 1
+            #     for loss_name, loss_value in loss_dict.items():
+            #         writer.add_scalar("valid/" + loss_name, loss_value, train_steps)
+            #     valid_steps += 1
 
                 valid_epoch_pred.append(pred.squeeze(-1).detach().cpu())
                 valid_epoch_target.append(target.squeeze(-1).detach().cpu())
@@ -313,6 +350,7 @@ def main(config: dict):
                 save_dict = {
                     "epoch": epoch,
                     "model": model,
+                    # "model_linear": model_linear
                 }
                 torch.save(save_dict, filepath)
 
@@ -378,7 +416,9 @@ def main(config: dict):
     save_dict = torch.load(filepath, map_location="cpu")
     epoch = save_dict["epoch"]
     model = save_dict["model"]
+    # model_linear = save_dict["model_linear"]
     model.to(device)
+    # model_linear.to(device)
     ##################################################################################
     test_epoch_pred = []
     test_epoch_target = []
@@ -390,6 +430,9 @@ def main(config: dict):
             group = group.type(torch.float32).to(device)
 
             pred, _ = model(image)
+
+            # feature = model(image)
+            # pred = model_linear(feature)
 
             test_epoch_pred.append(pred.squeeze(-1).detach().cpu())
             test_epoch_target.append(target.squeeze(-1).detach().cpu())
@@ -464,15 +507,12 @@ def main(config: dict):
 
 
 if __name__ == "__main__":
-    config_path = "./config/l2.yaml"
+    config_path = "./config/vanilla.yaml"
     config = yaml.load(open(config_path, "r"), Loader=yaml.FullLoader)
     main(config)
-
-    config["loss"]["l2_loss"]["mode"] = "max"
+    config["datamodule"]["sensitive_attributes"] =  ["Male"]
     main(config)
-    # # config["trainer"]["learning_rate"] = 1.0e-04
-    # # main(config)
-    # # config["trainer"]["learning_rate"] = 1.0e-05
-    # # main(config)
+    config["datamodule"]["sensitive_attributes"] =  ["Young"]
+    main(config)
     # # config["trainer"]["learning_rate"] = 1.0e-06
     # # main(config)
