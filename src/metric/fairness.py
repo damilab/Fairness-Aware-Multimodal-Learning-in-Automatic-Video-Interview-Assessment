@@ -78,7 +78,7 @@ class SPDD(nn.Module):
             group_parity_tau = []
             for tau in self._tau:
                 group_pred_binary = torch.where(group_pred > tau, 1, 0)
-                conf_matrix = self._confusionmatrix(group_pred, group_target)
+                conf_matrix = self._confusionmatrix(group_pred_binary, group_target)
                 group_parity = (conf_matrix[0, 1] + conf_matrix[1, 1]) / (
                     len(group_target) + 1e-10
                 )

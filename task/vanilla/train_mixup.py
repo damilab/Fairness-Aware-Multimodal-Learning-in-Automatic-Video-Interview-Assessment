@@ -8,9 +8,10 @@ from dataset.transform import (
     get_base_train_transform,
     get_base_val_transform,
 )
+from dataset.transform import mixup_data, mixup_criterion
 from dataset import CelebADataset_MSA
 from torch.utils.data import DataLoader
-from network import ResNet, MobileNet_v2
+from network import ResNet
 
 import torch
 from loss import FairnessLoss
@@ -40,7 +41,6 @@ def main(config: dict):
         transform=train_transform,
         gaussian_noise_transform=False,
         download=False,
-        target_attribute=config["datamodule"]["target_attribute"],
         sensitive_attributes=config["datamodule"]["sensitive_attributes"],
     )
     valid_dataset = CelebADataset_MSA(
@@ -49,7 +49,6 @@ def main(config: dict):
         transform=valid_transform,
         gaussian_noise_transform=False,
         download=False,
-        target_attribute=config["datamodule"]["target_attribute"],
         sensitive_attributes=config["datamodule"]["sensitive_attributes"],
     )
 
@@ -72,17 +71,11 @@ def main(config: dict):
     )
     ####################################################
     # model
-    model_type = config["module"]["model"]["type"]
-    if model_type == "res18" or model_type == "res34":
-        model = ResNet(
-            num_class=config["module"]["model"]["num_class"],
-            type=config["module"]["model"]["type"],
-            pretrained_path=config["module"]["model"]["pretrained_path"],
-        )
-    elif model_type == "mobilenet":
-        model = MobileNet_v2(
-            num_class=config["module"]["model"]["num_class"],
-        )
+    model = ResNet(
+        num_class=config["module"]["model"]["num_class"],
+        type=config["module"]["model"]["type"],
+        pretrained_path=config["module"]["model"]["pretrained_path"],
+    )
     ####################################################
     # loss function
     num_group = 2 ** len(config["datamodule"]["sensitive_attributes"])
@@ -176,82 +169,82 @@ def main(config: dict):
             target = target.type(torch.float32).to(device)
             group = group.type(torch.float32).to(device)
 
-            pred, feature = model(image)
-
-            loss_dict = loss_function(
-                feature=feature,
-                pred=pred,
-                target=target,
-                group=group,
+            mixed_x, y_a, y_b, lam = mixup_data(x=image, y=target)
+            pred, _ = model(mixed_x)
+            loss = mixup_criterion(
+                criterion=base_loss_function, pred=pred, y_a=y_a, y_b=y_b, lam=lam
             )
 
-            for loss_name, loss_value in loss_dict.items():
-                writer.add_scalar("train/" + loss_name, loss_value, train_steps)
+            writer.add_scalar("train/mixup_loss", loss, train_steps)
             train_steps += 1
 
             optimizer.zero_grad()
-            loss_dict["total_loss"].backward()
+            loss.backward()
             optimizer.step()
 
-            train_epoch_pred.append(pred.squeeze(-1).detach().cpu())
-            train_epoch_target.append(target.squeeze(-1).detach().cpu())
-            train_epoch_group.append(group.squeeze(-1).detach().cpu())
-        ##################################################################################
-        # train metrics
-        train_epoch_pred = torch.concat(train_epoch_pred)
-        train_epoch_target = torch.concat(train_epoch_target)
-        train_epoch_group = torch.concat(train_epoch_group)
+        #     train_epoch_pred.append(pred.squeeze(-1).detach().cpu())
+        #     train_epoch_target.append(target.squeeze(-1).detach().cpu())
+        #     train_epoch_group.append(group.squeeze(-1).detach().cpu())
+        # ##################################################################################
+        # # train metrics
+        # train_epoch_pred = torch.concat(train_epoch_pred)
+        # train_epoch_target = torch.concat(train_epoch_target)
+        # train_epoch_group = torch.concat(train_epoch_group)
 
-        train_epoch_target = torch.where(train_epoch_target >= tau, 1.0, 0.0)
-        binaryaccuracy = binaryaccuracy_fn(train_epoch_pred, train_epoch_target)
-        binaryaverageprecision = binaryaverageprecision_fn(
-            train_epoch_pred, train_epoch_target.type(torch.int8)
-        )
-        dp_mean, dp_max = dp_fn(train_epoch_pred, train_epoch_target, train_epoch_group)
-        spdd_mean, spdd_max = spdd_fn(
-            train_epoch_pred, train_epoch_target, train_epoch_group
-        )
+        # train_epoch_target = torch.where(train_epoch_target >= tau, 1.0, 0.0)
+        # binaryaccuracy = binaryaccuracy_fn(train_epoch_pred, train_epoch_target)
+        # binaryaverageprecision = binaryaverageprecision_fn(
+        #     train_epoch_pred, train_epoch_target.type(torch.int8)
+        # )
+        # dp_mean, dp_max = dp_fn(train_epoch_pred, train_epoch_target, train_epoch_group)
+        # spdd_mean, spdd_max = spdd_fn(
+        #     train_epoch_pred, train_epoch_target, train_epoch_group
+        # )
 
-        equal_opportunity_mean, equal_opportunity_max = equal_opportunity_fn(
-            train_epoch_pred, train_epoch_target, train_epoch_group
-        )
-        equalized_odds_mean, equalized_odds_max = equalized_odds_fn(
-            train_epoch_pred, train_epoch_target, train_epoch_group
-        )
-        gs_mean, gs_max = gs_fn(train_epoch_pred, train_epoch_target, train_epoch_group)
+        # equal_opportunity_mean, equal_opportunity_max = equal_opportunity_fn(
+        #     train_epoch_pred, train_epoch_target, train_epoch_group
+        # )
+        # equalized_odds_mean, equalized_odds_max = equalized_odds_fn(
+        #     train_epoch_pred, train_epoch_target, train_epoch_group
+        # )
+        # gs_mean, gs_max = gs_fn(train_epoch_pred, train_epoch_target, train_epoch_group)
 
-        print("=" * 100)
-        print("training")
-        print("epoch :", epoch)
-        print("acc :", binaryaccuracy)
-        print("ap :", binaryaverageprecision)
-        print("dp :", dp_mean, dp_max)
-        print("spdd :", spdd_mean, spdd_max)
-        print("equal_opportunity :", equal_opportunity_mean, equal_opportunity_max)
-        print("equalized_odds :", equalized_odds_mean, equalized_odds_max)
-        print("gs :", gs_mean, gs_max)
-        print("=" * 100)
+        # print("=" * 100)
+        # print("training")
+        # print("epoch :", epoch)
+        # print("acc :", binaryaccuracy)
+        # print("ap :", binaryaverageprecision)
+        # print("dp :", dp_mean, dp_max)
+        # print("spdd :", spdd_mean, spdd_max)
+        # print("equal_opportunity :", equal_opportunity_mean, equal_opportunity_max)
+        # print("equalized_odds :", equalized_odds_mean, equalized_odds_max)
+        # print("gs :", gs_mean, gs_max)
+        # print("=" * 100)
 
-        writer.add_scalar("train/binaryaccuracy", binaryaccuracy, epoch)
-        writer.add_scalar("train/binaryaverageprecision", binaryaverageprecision, epoch)
-        writer.add_scalar("train/Male/dp_mean", dp_mean, epoch)
-        writer.add_scalar("train/Male/dp_max", dp_max, epoch)
-        writer.add_scalar(
-            "train/Male/equal_opportunity_mean", equal_opportunity_mean, epoch
-        )
-        writer.add_scalar(
-            "train/Male/equal_opportunity_max", equal_opportunity_max, epoch
-        )
-        writer.add_scalar("train/Male/equalized_odds_mean", equalized_odds_mean, epoch)
-        writer.add_scalar("train/Male/equalized_odds_max", equalized_odds_max, epoch)
-        writer.add_scalar("train/Male/spdd_mean", spdd_mean, epoch)
-        writer.add_scalar("train/Male/spdd_max", spdd_max, epoch)
-        writer.add_scalar("train/Male/gs_mean", gs_mean, epoch)
-        writer.add_scalar("train/Male/gs_max", gs_max, epoch)
+        # writer.add_scalar("train/binaryaccuracy", binaryaccuracy, epoch)
+        # writer.add_scalar("train/binaryaverageprecision", binaryaverageprecision, epoch)
+        # writer.add_scalar("train/gender_age/dp_mean", dp_mean, epoch)
+        # writer.add_scalar("train/gender_age/dp_max", dp_max, epoch)
+        # writer.add_scalar(
+        #     "train/gender_age/equal_opportunity_mean", equal_opportunity_mean, epoch
+        # )
+        # writer.add_scalar(
+        #     "train/gender_age/equal_opportunity_max", equal_opportunity_max, epoch
+        # )
+        # writer.add_scalar(
+        #     "train/gender_age/equalized_odds_mean", equalized_odds_mean, epoch
+        # )
+        # writer.add_scalar(
+        #     "train/gender_age/equalized_odds_max", equalized_odds_max, epoch
+        # )
+        # writer.add_scalar("train/gender_age/spdd_mean", spdd_mean, epoch)
+        # writer.add_scalar("train/gender_age/spdd_max", spdd_max, epoch)
+        # writer.add_scalar("train/gender_age/gs_mean", gs_mean, epoch)
+        # writer.add_scalar("train/gender_age/gs_max", gs_max, epoch)
 
-        del train_epoch_pred
-        del train_epoch_target
-        del train_epoch_group
+        # del train_epoch_pred
+        # del train_epoch_target
+        # del train_epoch_group
         ##################################################################################
         # model 저장
         # filepath = os.path.join("./", model_root, str(epoch).zfill(3) + ".pt")
@@ -268,18 +261,7 @@ def main(config: dict):
                 target = target.type(torch.float32).to(device)
                 group = group.type(torch.float32).to(device)
 
-                pred, feature = model(image)
-
-                loss_dict = loss_function(
-                    feature=feature,
-                    pred=pred,
-                    target=target,
-                    group=group,
-                )
-
-                for loss_name, loss_value in loss_dict.items():
-                    writer.add_scalar("valid/" + loss_name, loss_value, train_steps)
-                valid_steps += 1
+                pred, _ = model(image)
 
                 valid_epoch_pred.append(pred.squeeze(-1).detach().cpu())
                 valid_epoch_target.append(target.squeeze(-1).detach().cpu())
@@ -336,24 +318,24 @@ def main(config: dict):
             writer.add_scalar(
                 "valid/binaryaverageprecision", binaryaverageprecision, epoch
             )
-            writer.add_scalar("valid/Male/dp_mean", dp_mean, epoch)
-            writer.add_scalar("valid/Male/dp_max", dp_max, epoch)
-            writer.add_scalar("valid/Male/spdd_mean", spdd_mean, epoch)
-            writer.add_scalar("valid/Male/spdd_max", spdd_max, epoch)
+            writer.add_scalar("valid/gender_age/dp_mean", dp_mean, epoch)
+            writer.add_scalar("valid/gender_age/dp_max", dp_max, epoch)
+            writer.add_scalar("valid/gender_age/spdd_mean", spdd_mean, epoch)
+            writer.add_scalar("valid/gender_age/spdd_max", spdd_max, epoch)
             writer.add_scalar(
-                "valid/Male/equal_opportunity_mean", equal_opportunity_mean, epoch
+                "valid/gender_age/equal_opportunity_mean", equal_opportunity_mean, epoch
             )
             writer.add_scalar(
-                "valid/Male/equal_opportunity_max", equal_opportunity_max, epoch
+                "valid/gender_age/equal_opportunity_max", equal_opportunity_max, epoch
             )
             writer.add_scalar(
-                "valid/Male/equalized_odds_mean", equalized_odds_mean, epoch
+                "valid/gender_age/equalized_odds_mean", equalized_odds_mean, epoch
             )
             writer.add_scalar(
-                "valid/Male/equalized_odds_max", equalized_odds_max, epoch
+                "valid/gender_age/equalized_odds_max", equalized_odds_max, epoch
             )
-            writer.add_scalar("valid/Male/gs_mean", gs_mean, epoch)
-            writer.add_scalar("valid/Male/gs_max", gs_max, epoch)
+            writer.add_scalar("valid/gender_age/gs_mean", gs_mean, epoch)
+            writer.add_scalar("valid/gender_age/gs_max", gs_max, epoch)
 
         del valid_epoch_pred
         del valid_epoch_target
@@ -368,7 +350,6 @@ def main(config: dict):
         transform=test_transform,
         gaussian_noise_transform=False,
         download=False,
-        target_attribute=config["datamodule"]["target_attribute"],
         sensitive_attributes=config["datamodule"]["sensitive_attributes"],
     )
     test_dataloader = DataLoader(
@@ -405,7 +386,6 @@ def main(config: dict):
     test_epoch_target = torch.concat(test_epoch_target)
     test_epoch_group = torch.concat(test_epoch_group)
 
-    test_epoch_target = torch.where(test_epoch_target >= tau, 1.0, 0.0)
     binaryaccuracy = binaryaccuracy_fn(test_epoch_pred, test_epoch_target)
     binaryaverageprecision = binaryaverageprecision_fn(
         test_epoch_pred, test_epoch_target.type(torch.int8)
@@ -433,16 +413,20 @@ def main(config: dict):
 
     writer.add_scalar("test/binaryaccuracy", binaryaccuracy, epoch)
     writer.add_scalar("test/binaryaverageprecision", binaryaverageprecision, epoch)
-    writer.add_scalar("test/Male/dp_mean", dp_mean, epoch)
-    writer.add_scalar("test/Male/dp_max", dp_max, epoch)
-    writer.add_scalar("test/Male/spdd_mean", spdd_mean, epoch)
-    writer.add_scalar("test/Male/spdd_max", spdd_max, epoch)
-    writer.add_scalar("test/Male/equal_opportunity_mean", equal_opportunity_mean, epoch)
-    writer.add_scalar("test/Male/equal_opportunity_max", equal_opportunity_max, epoch)
-    writer.add_scalar("test/Male/equalized_odds_mean", equalized_odds_mean, epoch)
-    writer.add_scalar("test/Male/equalized_odds_max", equalized_odds_max, epoch)
-    writer.add_scalar("test/Male/gs_mean", gs_mean, epoch)
-    writer.add_scalar("test/Male/gs_max", gs_max, epoch)
+    writer.add_scalar("test/gender_age/dp_mean", dp_mean, epoch)
+    writer.add_scalar("test/gender_age/dp_max", dp_max, epoch)
+    writer.add_scalar("test/gender_age/spdd_mean", spdd_mean, epoch)
+    writer.add_scalar("test/gender_age/spdd_max", spdd_max, epoch)
+    writer.add_scalar(
+        "test/gender_age/equal_opportunity_mean", equal_opportunity_mean, epoch
+    )
+    writer.add_scalar(
+        "test/gender_age/equal_opportunity_max", equal_opportunity_max, epoch
+    )
+    writer.add_scalar("test/gender_age/equalized_odds_mean", equalized_odds_mean, epoch)
+    writer.add_scalar("test/gender_age/equalized_odds_max", equalized_odds_max, epoch)
+    writer.add_scalar("test/gender_age/gs_mean", gs_mean, epoch)
+    writer.add_scalar("test/gender_age/gs_max", gs_max, epoch)
 
     writer.flush()
     writer.close()
@@ -466,12 +450,6 @@ def main(config: dict):
 
 
 if __name__ == "__main__":
-    config_path = "./config/vanilla.yaml"
+    config_path = "./config/mixup.yaml"
     config = yaml.load(open(config_path, "r"), Loader=yaml.FullLoader)
-    main(config)
-    config["trainer"]["learning_rate"] = 1.0e-04
-    main(config)
-    config["trainer"]["learning_rate"] = 1.0e-05
-    main(config)
-    config["trainer"]["learning_rate"] = 1.0e-06
     main(config)

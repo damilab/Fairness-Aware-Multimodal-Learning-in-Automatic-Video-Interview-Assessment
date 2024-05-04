@@ -1,15 +1,15 @@
 datamodule:
   image_dir: C:/Users/kcw83/Desktop/fairness/data
-  target_attribute: Smiling
   sensitive_attributes: 
   - Male
+  - Young
   num_workers: 4
   batch_size: 128
 
 module:
   model:
     num_class: 1
-    type: mobilenet
+    type: res18
     pretrained_path: None
 
 loss:
@@ -30,12 +30,12 @@ loss:
     mode: mean
   
 trainer:
-  learning_rate: 1.0e-06
-  epochs: 100
+  learning_rate: 1.0e-05
+  epochs: 200
   device: 0
   logger: 
     root: ./runs
-    name: vanilla_smiling
+    name: mixup
 
 metric: 
   num_class: 2

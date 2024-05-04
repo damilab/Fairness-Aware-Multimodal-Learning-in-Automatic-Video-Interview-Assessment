@@ -13,6 +13,7 @@ class CelebADataset_MSA(Dataset):
         transform: nn.Module,
         gaussian_noise_transform: bool,
         download: bool,
+        target_attribute: str,
         sensitive_attributes: list,
     ):
         self._gaussian_noise_transform = gaussian_noise_transform
@@ -23,6 +24,7 @@ class CelebADataset_MSA(Dataset):
             transform=transform,
             download=download,
         )
+        self._target_attribute = target_attribute
         self._sensitive_attributes = sensitive_attributes
 
     def gaussian_noise_transform(self, image: torch.tensor):
@@ -37,7 +39,8 @@ class CelebADataset_MSA(Dataset):
 
     def __getitem__(self, index):
         image, attr = self._dataset.__getitem__(index)
-        attractive = torch.tensor([attr[celeba_attr["Attractive"]]])
+        target = torch.tensor([attr[celeba_attr[self._target_attribute]]])
+
         multi = []
         for sensitive_attribute in self._sensitive_attributes:
             multi.append(attr[celeba_attr[sensitive_attribute]].item())
@@ -46,4 +49,4 @@ class CelebADataset_MSA(Dataset):
         if self._gaussian_noise_transform == True:
             image = self.gaussian_noise_transform(image)
 
-        return image, attractive, multi
+        return image, target, multi

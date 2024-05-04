@@ -13,3 +13,6 @@ data/celeba/list_landmarks_align_celeba.txt
 
 # log directory
 task/*/runs
+
+# test
+test.ipynb

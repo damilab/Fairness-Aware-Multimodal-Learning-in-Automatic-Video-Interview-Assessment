@@ -1,15 +1,15 @@
 datamodule:
   image_dir: C:/Users/kcw83/Desktop/fairness/data
-  target_attribute: Smiling
   sensitive_attributes: 
   - Male
+  - Young
   num_workers: 4
   batch_size: 128
 
 module:
   model:
     num_class: 1
-    type: mobilenet
+    type: res18
     pretrained_path: None
 
 loss:
@@ -19,7 +19,7 @@ loss:
     weight: 0.0
     mode: mean
   wd_loss:
-    weight: 0.0
+    weight: 1.0
     mode: mean
   powd_loss:
     weight: 0.0
@@ -30,12 +30,12 @@ loss:
     mode: mean
   
 trainer:
-  learning_rate: 1.0e-06
-  epochs: 100
+  learning_rate: 1.0e-03
+  epochs: 50
   device: 0
   logger: 
     root: ./runs
-    name: vanilla_smiling
+    name: original_wd
 
 metric: 
   num_class: 2
