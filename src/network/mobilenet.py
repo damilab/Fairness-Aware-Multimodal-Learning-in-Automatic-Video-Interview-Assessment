@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torchvision.models import mobilenet_v2
+from torchvision.models import mobilenet_v2, mobilenet_v3_small, mobilenet_v3_large
 
 
 class Identity(nn.Module):
@@ -10,22 +10,35 @@ class Identity(nn.Module):
         return x
 
 
-class MobileNet_v2_Encoder(nn.Module):
-    def __init__(self):
+class MobileNet(nn.Module):
+    def __init__(self, num_class: int = 1, type: str = "mobilenet_v2") -> None:
         super().__init__()
-        self._mobilenetv2 = mobilenet_v2()
-        self._mobilenetv2.classifier = Identity()
+        if type == "mobilenet_v2":
+            self._encoder = mobilenet_v2()
+            self._encoder.classifier = Identity()
+            self._classifier = nn.Sequential(
+                nn.Dropout(p=0.2, inplace=False),
+                nn.Linear(in_features=1280, out_features=10, bias=True),
+            )
+        elif type == "mobilenet_v3_small":
+            self._encoder = mobilenet_v3_small()
+            self._encoder.classifier = Identity()
+            self._classifier = nn.Sequential(
+                nn.Linear(in_features=576, out_features=1024, bias=True),
+                nn.Hardswish(),
+                nn.Dropout(p=0.2, inplace=True),
+                nn.Linear(in_features=1024, out_features=num_class, bias=True),
+            )
+        elif type == "mobilenet_v3_large":
+            self._encoder = mobilenet_v3_large()
+            self._encoder.classifier = Identity()
+            self._classifier = nn.Sequential(
+                nn.Linear(in_features=960, out_features=1280, bias=True),
+                nn.Hardswish(),
+                nn.Dropout(p=0.2, inplace=True),
+                nn.Linear(in_features=1280, out_features=num_class, bias=True),
+            )
 
-    def forward(self, input_img):
-        return self._mobilenetv2(input_img)
-
-
-class MobileNet_v2(nn.Module):
-    def __init__(self, num_class) -> None:
-        super().__init__()
-
-        self._encoder = MobileNet_v2_Encoder()
-        self._classifier = nn.Linear(1280, num_class)
         self._sigmoid = nn.Sigmoid()
 
     def forward(self, x):

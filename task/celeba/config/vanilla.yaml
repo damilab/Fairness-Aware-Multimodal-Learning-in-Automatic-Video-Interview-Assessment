@@ -9,7 +9,7 @@ datamodule:
 module:
   model:
     num_class: 1
-    type: mobilenet
+    type: mobilenet_v3_small
     pretrained_path: None
 
 loss:
@@ -30,12 +30,12 @@ loss:
     mode: mean
   
 trainer:
-  learning_rate: 1.0e-06
+  learning_rate: 1.0e-03
   epochs: 100
   device: 0
   logger: 
     root: ./runs
-    name: vanilla_smiling
+    name: vanilla_mobilenet_smiling
 
 metric: 
   num_class: 2

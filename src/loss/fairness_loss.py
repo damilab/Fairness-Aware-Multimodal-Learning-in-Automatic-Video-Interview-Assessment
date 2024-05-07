@@ -48,7 +48,7 @@ class FairnessLoss(nn.Module):
         gapreg_loss = self._gapreg_loss_function(pred, group)
 
         total_loss = (
-            (self._base_loss_weight * base_loss)
+            self._base_loss_weight * base_loss
             + (self._l2_loss_weight * l2_loss)
             + (self._wd_loss_weight * wd_loss)
             + (self._powd_loss_weight * powd_loss)

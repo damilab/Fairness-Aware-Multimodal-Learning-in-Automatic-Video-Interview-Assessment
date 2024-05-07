@@ -10,7 +10,7 @@ from dataset.transform import (
 )
 from dataset import CelebADataset_MSA
 from torch.utils.data import DataLoader
-from network import ResNet, MobileNet_v2
+from network import ResNet, MobileNet
 
 import torch
 from loss import FairnessLoss
@@ -79,9 +79,10 @@ def main(config: dict):
             type=config["module"]["model"]["type"],
             pretrained_path=config["module"]["model"]["pretrained_path"],
         )
-    elif model_type == "mobilenet":
-        model = MobileNet_v2(
+    elif model_type == "mobilenet_v2" or model_type == "mobilenet_v3_small":
+        model = MobileNet(
             num_class=config["module"]["model"]["num_class"],
+            type=config["module"]["model"]["type"],
         )
     ####################################################
     # loss function
@@ -171,6 +172,7 @@ def main(config: dict):
         train_epoch_pred = []
         train_epoch_target = []
         train_epoch_group = []
+        model.train()
         for image, target, group in tqdm(train_dataloader):
             image = image.to(device)
             target = target.type(torch.float32).to(device)
@@ -262,6 +264,7 @@ def main(config: dict):
         valid_epoch_pred = []
         valid_epoch_target = []
         valid_epoch_group = []
+        model.eval()
         with torch.no_grad():
             for image, target, group in tqdm(valid_dataloader):
                 image = image.to(device)
@@ -384,6 +387,7 @@ def main(config: dict):
     epoch = save_dict["epoch"]
     model = save_dict["model"]
     model.to(device)
+    model.eval()
     ##################################################################################
     test_epoch_pred = []
     test_epoch_target = []
