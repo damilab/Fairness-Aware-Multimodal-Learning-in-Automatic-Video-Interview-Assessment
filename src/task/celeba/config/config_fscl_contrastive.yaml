@@ -1,0 +1,37 @@
+datamodule:
+  image_dir: ./data
+  target_attribute: Attractive
+  sensitive_attributes: 
+  - Male
+  - Young
+  - Smiling
+  num_workers: 8
+  batch_size: 256
+
+module:
+  model:
+    num_class: 1
+    type: mobilenet_v3_small
+    pretrained_path: None
+
+loss:
+  base_loss:
+    weight: 1.0
+  fscl_loss:
+    temperature: 0.1
+    base_temperature: 0.07
+    group_norm: True
+    method: FSCL
+
+trainer:
+  learning_rate: 1.0e-03
+  epochs: 50
+  device: 0
+  logger: 
+    root: ./runs_celeba
+    name: _paper_fscl
+
+metric: 
+  num_class: 2
+  tau: 0.5
+  interval: 0.02

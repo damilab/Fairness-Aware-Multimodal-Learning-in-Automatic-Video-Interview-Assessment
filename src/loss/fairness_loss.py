@@ -1,65 +1,52 @@
 import torch
 import torch.nn as nn
+from .multiple_group import MultipleL2Loss
+from .multiple_group import MultipleMMDLoss
+from .multiple_group import MultipleWDLoss
 
 
 class FairnessLoss(nn.Module):
     def __init__(
         self,
-        base_loss_weight: float,
+        config: dict,
         base_loss_function: nn.Module,
-        wd_loss_weight: float,
-        wd_loss_function: nn.Module,
-        powd_loss_weight: float,
-        powd_loss_function: nn.Module,
-        gapreg_loss_weight: float,
-        gapreg_loss_function: nn.Module,
-        l2_loss_weight: float,
-        l2_loss_function: nn.Module,
-    ) -> dict:
+    ) -> None:
         super().__init__()
-
-        self._base_loss_weight = base_loss_weight
+        self._base_loss_weight = config["loss"]["base_loss"]["weight"]
         self._base_loss_function = base_loss_function
 
-        self._l2_loss_weight = l2_loss_weight
-        self._l2_loss_function = l2_loss_function
+        self._l2_loss_weight = config["loss"]["l2_loss"]["weight"]
+        self._l2_loss_function = MultipleL2Loss()
 
-        self._wd_loss_weight = wd_loss_weight
-        self._wd_loss_function = wd_loss_function
+        self._mmd_loss_weight = config["loss"]["mmd_loss"]["weight"]
+        self._mmd_loss_function = MultipleMMDLoss()
 
-        self._powd_loss_weight = powd_loss_weight
-        self._powd_loss_function = powd_loss_function
-
-        self._gapreg_loss_weight = gapreg_loss_weight
-        self._gapreg_loss_function = gapreg_loss_function
+        self._wd_loss_weight = config["loss"]["wd_loss"]["weight"]
+        self._wd_loss_function = MultipleWDLoss()
 
     def forward(
         self,
-        feature: torch.Tensor,
-        pred: torch.Tensor,
-        target: torch.Tensor,
-        group: torch.Tensor,
+        batch_pred: torch.Tensor,
+        batch_feature: torch.Tensor,
+        batch_target: torch.Tensor,
+        batch_group: torch.Tensor,
     ) -> dict:
-
-        base_loss = self._base_loss_function(pred, target)
-        l2_loss = self._l2_loss_function(feature, group)
-        wd_loss = self._wd_loss_function(pred, group)
-        powd_loss = self._powd_loss_function(pred, group)
-        gapreg_loss = self._gapreg_loss_function(pred, group)
+        base_loss = self._base_loss_function(batch_pred, batch_target)
+        l2_loss = self._l2_loss_function(batch_feature, batch_group)
+        mmd_loss = self._mmd_loss_function(batch_feature, batch_group)
+        wd_loss = self._wd_loss_function(batch_pred, batch_group)
 
         total_loss = (
             self._base_loss_weight * base_loss
             + (self._l2_loss_weight * l2_loss)
+            + (self._mmd_loss_weight * mmd_loss)
             + (self._wd_loss_weight * wd_loss)
-            + (self._powd_loss_weight * powd_loss)
-            + (self._gapreg_loss_weight * gapreg_loss)
         )
 
         return {
             "total_loss": total_loss,
             "base_loss": base_loss,
             "l2_loss": l2_loss,
+            "mmd_loss": mmd_loss,
             "wd_loss": wd_loss,
-            "powd_loss": powd_loss,
-            "gapreg_loss": gapreg_loss,
         }

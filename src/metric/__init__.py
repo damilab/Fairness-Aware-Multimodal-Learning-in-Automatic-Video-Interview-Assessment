@@ -1,3 +1,8 @@
-from .fairness import DP, SPDD
-from .fairness import Equal_Opportunity, Equalized_Odds
-from .fairness import GS
+from .base_metric import BaseMetric
+from .demographic_parity import DemographicParity
+from .demographic_parity_fair_mixup import DemographicParity_Fair_Mixup
+from .strong_pairwise_demographic_disparity import Strong_Pairwise_Demographic_Disparity
+from .epual_opportunity import Equal_Opportunity
+from .strong_pairwise_equal_opportunity import Strong_Pairwise_Equal_Opportunity
+from .equalized_odds import Equalized_Odds
+from .strong_pairwise_equalized_odds import Strong_Pairwise_Equalized_Odds

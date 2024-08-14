@@ -41,6 +41,15 @@ class MobileNet(nn.Module):
 
         self._sigmoid = nn.Sigmoid()
 
+    def _get_feature(self, x):
+        emb = self._encoder(x)
+        return emb
+
+    def _get_prediction(self, emb):
+        out = self._classifier(emb)
+        out = self._sigmoid(out)
+        return out
+
     def forward(self, x):
         emb = self._encoder(x)
         out = self._classifier(emb)

@@ -31,13 +31,13 @@ class DP(nn.Module):
             conf_matrix = self._confusionmatrix(group_pred, group_target)
             # RPP : Rate of Positive Predictions = FP + TP / FN + FP + TN + TP
             FP_TP = conf_matrix[0, 1] + conf_matrix[1, 1]
-            FN_FP_TN_TP = (
+            TN_FP_FN_TP = (
                 conf_matrix[0, 0]
                 + conf_matrix[0, 1]
                 + conf_matrix[1, 0]
                 + conf_matrix[1, 1]
             )
-            group_parity = FP_TP / (FN_FP_TN_TP + 1e-10)
+            group_parity = FP_TP / (TN_FP_FN_TP + 1e-10)
             parities.append(group_parity)
 
         disparities = []
@@ -79,11 +79,17 @@ class SPDD(nn.Module):
             for tau in self._tau:
                 group_pred_binary = torch.where(group_pred > tau, 1, 0)
                 conf_matrix = self._confusionmatrix(group_pred_binary, group_target)
-                group_parity = (conf_matrix[0, 1] + conf_matrix[1, 1]) / (
-                    len(group_target) + 1e-10
+
+                FP_TP = conf_matrix[0, 1] + conf_matrix[1, 1]
+                TN_FP_FN_TP = (
+                    conf_matrix[0, 0]
+                    + conf_matrix[0, 1]
+                    + conf_matrix[1, 0]
+                    + conf_matrix[1, 1]
                 )
+                group_parity = FP_TP / (TN_FP_FN_TP + 1e-10)
                 group_parity_tau.append(group_parity)
-            group_parity_tau = torch.stack(group_parity_tau)
+            group_parity_tau = torch.stack(group_parity_tau).mean()
             parities.append(group_parity_tau)
 
         disparities = []

@@ -38,7 +38,6 @@ class BaseMetric(Metric):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         group_target = target[torch.where(group == group_idx)]
         group_pred = pred[torch.where(group == group_idx)]
-
         return group_target, group_pred
 
     def _make_binary(
